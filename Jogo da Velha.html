@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Velha Inteligente</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #e0e0e0;
+            --primary-color: #3d5afe;
+            --accent-color: #ff4081;
+            --shadow-light: #ffffff;
+            --shadow-dark: #bebebe;
+            --text-color: #5a5a5a;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        .screen {
+            text-align: center;
+            padding: 40px;
+            background-color: var(--bg-color);
+            border-radius: 30px;
+            box-shadow: 20px 20px 60px var(--shadow-dark), -20px -20px 60px var(--shadow-light);
+            display: none; /* Todas as telas começam escondidas */
+            max-width: 90vw;
+        }
+        
+        #lang-screen {
+            display: block; /* A tela de idioma começa visível */
+        }
+
+        .screen h1, .screen h2 {
+            color: var(--primary-color);
+            margin-bottom: 30px;
+        }
+        
+        h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        h2 { font-size: 2rem; }
+
+        .choice-buttons {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .column-buttons { flex-direction: column; }
+        .row-buttons { flex-direction: row; }
+
+        .action-button {
+            padding: 15px 30px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            border: none;
+            border-radius: 15px;
+            box-shadow: 8px 8px 15px var(--shadow-dark), -8px -8px 15px var(--shadow-light);
+            cursor: pointer;
+            transition: box-shadow 0.2s ease, transform 0.1s ease;
+            min-width: 150px;
+        }
+
+        .action-button:hover {
+            box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
+            transform: translateY(-2px);
+        }
+        
+        .symbol-choice-button {
+            width: 100px; height: 100px; font-size: 3rem; font-weight: bold;
+            display: flex; justify-content: center; align-items: center; padding: 0;
+        }
+
+        #status-display {
+            font-size: 1.2rem; height: 30px; margin-bottom: 20px; font-weight: bold;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(60px, 100px));
+            grid-template-rows: repeat(3, minmax(60px, 100px));
+            gap: 15px;
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .cell {
+            width: 100%; 
+            height: 100%;
+            aspect-ratio: 1 / 1;
+            background-color: var(--bg-color); border-radius: 20px;
+            box-shadow: 8px 8px 15px var(--shadow-dark), -8px -8px 15px var(--shadow-light);
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: box-shadow 0.2s ease;
+        }
+
+        .cell:hover:not(.x):not(.o) {
+            box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
+        }
+        
+        .cell.x, .cell.o {
+             box-shadow: inset 8px 8px 15px var(--shadow-dark), inset -8px -8px 15px var(--shadow-light);
+             cursor: not-allowed;
+        }
+
+        .cell svg {
+            width: 60%; height: 60%; stroke-width: 10; stroke-linecap: round;
+            transform: scale(0); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .cell.x svg { stroke: var(--primary-color); transform: scale(1); }
+        .cell.o svg { stroke: var(--accent-color); transform: scale(1); }
+
+        #winning-line {
+            position: absolute; height: 5px; border-radius: 5px;
+            transform-origin: left center; transition: width 0.5s ease-in-out; width: 0;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="lang-screen" class="screen">
+        <h2>Language / Idioma</h2>
+        <div class="choice-buttons column-buttons">
+            <button class="action-button" data-lang="pt">Português (Brasil)</button>
+            <button class="action-button" data-lang="en">English</button>
+        </div>
+    </div>
+    
+    <div id="difficulty-screen" class="screen">
+        <h2 data-key="difficultyTitle"></h2>
+        <div class="choice-buttons column-buttons">
+            <button class="action-button" data-difficulty="easy" data-key="easy"></button>
+            <button class="action-button" data-difficulty="medium" data-key="medium"></button>
+            <button class="action-button" data-difficulty="impossible" data-key="impossible"></button>
+        </div>
+    </div>
+
+    <div id="symbol-screen" class="screen">
+        <h2 data-key="symbolTitle"></h2>
+        <div class="choice-buttons row-buttons">
+            <button class="action-button symbol-choice-button" id="choose-x">X</button>
+            <button class="action-button symbol-choice-button" id="choose-o">O</button>
+        </div>
+    </div>
+
+    <div class="game-screen screen">
+        <h1 data-key="gameTitle"></h1>
+        <div id="status-display"></div>
+        <div id="board">
+            <div class="cell" data-index="0"></div><div class="cell" data-index="1"></div><div class="cell" data-index="2"></div>
+            <div class="cell" data-index="3"></div><div class="cell" data-index="4"></div><div class="cell" data-index="5"></div>
+            <div class="cell" data-index="6"></div><div class="cell" data-index="7"></div><div class="cell" data-index="8"></div>
+            <div id="winning-line"></div>
+        </div>
+        <button id="restart-button" class="action-button" data-key="newGame"></button>
+    </div>
+
+    <script>
+        const translations = {
+            pt: {
+                gameTitle: "Jogo da Velha",
+                difficultyTitle: "Escolha a Dificuldade",
+                easy: "Fácil",
+                medium: "Médio",
+                impossible: "Impossível",
+                symbolTitle: "Escolha seu Símbolo",
+                yourTurn: "Sua vez",
+                aiTurn: "Vez do Computador",
+                youWon: "Você Venceu!",
+                aiWon: "O Computador Venceu!",
+                tie: "Deu Velha! Empate.",
+                newGame: "Novo Jogo"
+            },
+            en: {
+                gameTitle: "Tic-Tac-Toe",
+                difficultyTitle: "Choose Difficulty",
+                easy: "Easy",
+                medium: "Medium",
+                impossible: "Impossible",
+                symbolTitle: "Choose your Symbol",
+                yourTurn: "Your turn",
+                aiTurn: "Computer's turn",
+                youWon: "You Won!",
+                aiWon: "The Computer Won!",
+                tie: "It's a Tie!",
+                newGame: "New Game"
+            }
+        };
+        let currentLang = 'pt';
+
+        const statusDisplay = document.getElementById('status-display');
+        const boardEl = document.getElementById('board');
+        const cells = document.querySelectorAll('.cell');
+        const restartButton = document.getElementById('restart-button');
+        const screens = {
+            lang: document.getElementById('lang-screen'),
+            difficulty: document.getElementById('difficulty-screen'),
+            symbol: document.getElementById('symbol-screen'),
+            game: document.querySelector('.game-screen')
+        };
+        const chooseXButton = document.getElementById('choose-x');
+        const chooseOButton = document.getElementById('choose-o');
+        
+        let playerSymbol, aiSymbol;
+        let jogoAtivo = true;
+        let jogadorAtual;
+        let tabuleiro = ['', '', '', '', '', '', '', '', ''];
+        let dificuldadeIA = 'impossible';
+
+        const combinacoesVitoria = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+        const svgX = `<svg viewBox="0 0 100 100"><line x1="15" y1="15" x2="85" y2="85"></line><line x1="85" y1="15" x2="15" y2="85"></line></svg>`;
+        const svgO = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="35" stroke-dasharray="220" stroke-dashoffset="0" fill="none"></circle></svg>`;
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.querySelectorAll('[data-key]').forEach(element => {
+                const key = element.getAttribute('data-key');
+                if (translations[lang][key]) {
+                    element.textContent = translations[lang][key];
+                }
+            });
+        }
+
+        function mostrarTela(tela) {
+            Object.values(screens).forEach(s => s.style.display = 'none');
+            tela.style.display = 'block';
+        }
+
+        function iniciarJogo(simboloEscolhido) {
+            playerSymbol = simboloEscolhido;
+            aiSymbol = (playerSymbol === 'X') ? 'O' : 'X';
+            mostrarTela(screens.game);
+            reiniciarJogo();
+        }
+
+        function handleCellClick(e) {
+            const cell = e.target.closest('.cell');
+            if (!cell) return;
+            const cellIndex = parseInt(cell.getAttribute('data-index'));
+            if (tabuleiro[cellIndex] !== '' || !jogoAtivo || jogadorAtual !== playerSymbol) return;
+
+            fazerJogada(cellIndex, playerSymbol);
+            if (jogoAtivo) {
+                trocarTurno();
+                setTimeout(jogadaDaIA, 500);
+            }
+        }
+        
+        function fazerJogada(index, player) {
+            tabuleiro[index] = player;
+            cells[index].innerHTML = player === 'X' ? svgX : svgO;
+            cells[index].classList.add(player.toLowerCase());
+
+            if (verificarVencedor(tabuleiro, player)) {
+                fimDeJogo(false, player);
+            } else if (tabuleiro.every(cell => cell !== '')) {
+                fimDeJogo(true);
+            }
+        }
+        
+        function trocarTurno() {
+            jogadorAtual = (jogadorAtual === 'X') ? 'O' : 'X';
+            if (jogoAtivo) {
+                const turnText = jogadorAtual === playerSymbol ? translations[currentLang].yourTurn : translations[currentLang].aiTurn;
+                statusDisplay.textContent = `${turnText} (${jogadorAtual})`;
+            }
+        }
+
+        function fimDeJogo(empate, vencedor) {
+            jogoAtivo = false;
+            if (empate) {
+                statusDisplay.textContent = translations[currentLang].tie;
+            } else {
+                statusDisplay.textContent = vencedor === playerSymbol ? translations[currentLang].youWon : translations[currentLang].aiWon;
+                desenharLinhaVitoria(vencedor);
+            }
+        }
+
+        function reiniciarJogo() {
+            jogoAtivo = true;
+            jogadorAtual = 'X';
+            tabuleiro = ['', '', '', '', '', '', '', '', ''];
+            
+            cells.forEach(cell => {
+                cell.innerHTML = '';
+                cell.classList.remove('x', 'o');
+            });
+            document.getElementById('winning-line').style.width = '0';
+            
+            const turnText = jogadorAtual === playerSymbol ? translations[currentLang].yourTurn : translations[currentLang].aiTurn;
+            statusDisplay.textContent = `${turnText} (${jogadorAtual})`;
+            
+            if (jogadorAtual === aiSymbol) {
+                setTimeout(jogadaDaIA, 500);
+            }
+        }
+        
+        function jogadaDaIA() {
+            if (!jogoAtivo) return;
+
+            let melhorMovimento;
+            const posicoesVazias = tabuleiro.map((val, idx) => val === '' ? idx : null).filter(val => val !== null);
+
+            if (dificuldadeIA === 'easy') {
+                melhorMovimento = posicoesVazias[Math.floor(Math.random() * posicoesVazias.length)];
+            } else if (dificuldadeIA === 'medium') {
+                if (Math.random() < 0.5) melhorMovimento = minimax(tabuleiro, aiSymbol).index;
+                else melhorMovimento = posicoesVazias[Math.floor(Math.random() * posicoesVazias.length)];
+            } else { 
+                melhorMovimento = minimax(tabuleiro, aiSymbol).index;
+            }
+            
+            fazerJogada(melhorMovimento, aiSymbol);
+            if (jogoAtivo) trocarTurno();
+        }
+
+        function minimax(novoTabuleiro, player) {
+            const posicoesVazias = novoTabuleiro.map((val, idx) => val === '' ? idx : null).filter(val => val !== null);
+            if (verificarVencedor(novoTabuleiro, playerSymbol)) return { score: -10 };
+            if (verificarVencedor(novoTabuleiro, aiSymbol)) return { score: 10 };
+            if (posicoesVazias.length === 0) return { score: 0 };
+            const movimentos = [];
+            for (let i = 0; i < posicoesVazias.length; i++) {
+                const movimento = { index: posicoesVazias[i] };
+                novoTabuleiro[posicoesVazias[i]] = player;
+                movimento.score = minimax(novoTabuleiro, player === aiSymbol ? playerSymbol : aiSymbol).score;
+                novoTabuleiro[posicoesVazias[i]] = '';
+                movimentos.push(movimento);
+            }
+            let melhorMovimento;
+            if (player === aiSymbol) {
+                let melhorPontuacao = -Infinity;
+                movimentos.forEach(mov => { if (mov.score > melhorPontuacao) { melhorPontuacao = mov.score; melhorMovimento = mov; } });
+            } else {
+                let melhorPontuacao = Infinity;
+                movimentos.forEach(mov => { if (mov.score < melhorPontuacao) { melhorPontuacao = mov.score; melhorMovimento = mov; } });
+            }
+            return melhorMovimento;
+        }
+
+        function verificarVencedor(boardState, player) {
+            return combinacoesVitoria.some(combination => combination.every(index => boardState[index] === player));
+        }
+        
+        function desenharLinhaVitoria(vencedor) {
+            const comb = combinacoesVitoria.find(c => c.every(i => tabuleiro[i] === vencedor));
+            if (!comb) return;
+            const cI = cells[comb[0]].getBoundingClientRect(), cF = cells[comb[2]].getBoundingClientRect(), bR = boardEl.getBoundingClientRect();
+            const l = document.getElementById('winning-line');
+            l.style.backgroundColor = vencedor === 'X' ? 'var(--primary-color)' : 'var(--accent-color)';
+            const x1 = cI.left + cI.width / 2 - bR.left, y1 = cI.top + cI.height / 2 - bR.top;
+            const x2 = cF.left + cF.width / 2 - bR.left, y2 = cF.top + cF.height / 2 - bR.top;
+            const comp = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            const ang = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+            l.style.top = `${y1}px`; l.style.left = `${x1}px`; l.style.transform = `rotate(${ang}deg)`; l.style.width = `${comp}px`;
+        }
+
+        // --- EVENT LISTENERS ---
+        cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+        
+        restartButton.addEventListener('click', () => {
+            mostrarTela(screens.difficulty); // Volta para a tela de dificuldade, mantendo o idioma.
+        });
+
+        chooseXButton.addEventListener('click', () => iniciarJogo('X'));
+        chooseOButton.addEventListener('click', () => iniciarJogo('O'));
+        
+        screens.difficulty.querySelectorAll('.action-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                dificuldadeIA = e.target.getAttribute('data-difficulty');
+                mostrarTela(screens.symbol);
+            });
+        });
+
+        screens.lang.querySelectorAll('.action-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const lang = e.target.getAttribute('data-lang');
+                setLanguage(lang);
+                mostrarTela(screens.difficulty);
+            });
+        });
+
+        // Inicializa o jogo
+        setLanguage('pt'); // Define o idioma padrão inicial para os textos
+        mostrarTela(screens.lang); // Mostra a primeira tela de todas
+
+    </script>
+</body>
+</html>
